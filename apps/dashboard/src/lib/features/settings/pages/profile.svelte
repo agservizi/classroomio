@@ -5,8 +5,8 @@
   import { CircleCheckBig } from '@lucide/svelte';
   import { profileApi } from '$features/auth/api/profile.svelte';
   import { t } from '$lib/utils/functions/translations';
-  import LanguagePicker from '../components/language-picker.svelte';
   import { Input } from '@cio/ui/base/input';
+  import { DEFAULT_LOCALE } from '$lib/utils/functions/translations';
   import { Button } from '@cio/ui/base/button';
   import { UploadImage, UnsavedChanges } from '$features/ui';
   import * as Field from '@cio/ui/base/field';
@@ -19,7 +19,8 @@
 
   let avatar = $state<string | File | undefined>();
   let hasLangChanged = $state(false);
-  let locale = $derived<TLocale | undefined>($profile.locale || undefined);
+  // Gestiio fork: UI language fixed to Italian
+  let locale = $derived<TLocale>(DEFAULT_LOCALE as TLocale);
   let fullname = $state('');
   let username = $state('');
   let savedFullname = $state('');
@@ -199,9 +200,6 @@
             <p class="text-sm">{$t('settings.profile.personal_information.email_change_verification_note')}</p>
           </div>
         {/if}
-      </Field.Field>
-      <Field.Field>
-        <LanguagePicker bind:value={locale} className="" />
       </Field.Field>
     </Field.Group>
   </Field.Set>

@@ -72,6 +72,17 @@ export async function getLicenseStatus(): Promise<LicenseStatus> {
     return status;
   }
 
+  // Gestiio AGPL fork: self-host unlocks enterprise features (SSO / token-auth /
+  // no-tracking) without LICENSE_KEY or phone-home to enterprise-api.classroomio.dev.
+  // See AGPL-SOURCE.md and CHANGELOG-gestiio.md.
+  const key = env.LICENSE_KEY?.trim();
+  if (!key) {
+    const status: LicenseStatus = { valid: true, features: ALL_FEATURES };
+    cachedStatus = status;
+    cacheExpiry = now + CACHE_TTL_MS;
+    return status;
+  }
+
   const status = await fetchLicenseFromApi();
   cachedStatus = status;
   cacheExpiry = now + CACHE_TTL_MS;
@@ -88,6 +99,10 @@ export async function isFeatureLicensed(feature: LicenseFeatureId | string): Pro
   if (!isSelfHosted()) {
     return true;
   }
+  // Gestiio AGPL fork: no LICENSE_KEY → all features licensed on self-host
+  if (!env.LICENSE_KEY?.trim()) {
+    return true;
+  }
   const status = await getLicenseStatus();
   if (!status.valid) return false;
   return status.features.includes(feature);
@@ -102,6 +117,10 @@ export async function isFeatureLicensed(feature: LicenseFeatureId | string): Pro
 export function isFeatureLicensedSync(feature: LicenseFeatureId | string): boolean {
   // Cloud/SaaS has no license restrictions
   if (!isSelfHosted()) {
+    return true;
+  }
+  // Gestiio AGPL fork: no LICENSE_KEY → all features licensed on self-host
+  if (!env.LICENSE_KEY?.trim()) {
     return true;
   }
 

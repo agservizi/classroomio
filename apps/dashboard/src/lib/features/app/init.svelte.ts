@@ -238,7 +238,7 @@ class AppInitApi extends BaseApi {
     if (enforcedLocale) {
       activateLocale(enforcedLocale);
     } else {
-      handleLocaleChange(this.data.profile.locale ?? params?.orgLocale ?? 'en');
+      handleLocaleChange(this.data.profile.locale ?? params?.orgLocale ?? 'it');
     }
 
     this.setOrgStore(params);

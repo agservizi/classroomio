@@ -42,7 +42,7 @@ export const defaultProfileState: TProfile = {
   aiProvider: null,
   aiProviderOther: null,
   telegramChatId: null,
-  locale: 'en',
+  locale: 'it',
   isEmailVerified: false,
   verifiedAt: null,
   canAddCourse: true,

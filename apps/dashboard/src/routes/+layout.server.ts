@@ -53,7 +53,8 @@ export const load = async ({ url, cookies, request, locals }): Promise<LoadOutpu
     org: orgSiteInfo.org,
     baseMetaTags: await getBaseMetaTags(url, orgSiteInfo),
     serverLang: request.headers?.get('accept-language') || '',
-    localeCookie: cookies.get('classroomio_locale') || '',
+    // Gestiio fork: always Italian (ignore client cookie)
+    localeCookie: 'it',
     locals,
     uploadLimits: getUploadLimits()
   };

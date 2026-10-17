@@ -71,7 +71,10 @@ export const config = {
 
 export const { t, loading, locales, locale, initialized, translations, loadTranslations } = new i18n(config);
 
-export const selectedLocale = writable<string>('en');
+/** Gestiio fork: Italian is the only UI language (no selector). */
+export const DEFAULT_LOCALE = 'it';
+
+export const selectedLocale = writable<string>(DEFAULT_LOCALE);
 export const LOCALE_STORAGE_KEY = 'classroomio_locale';
 export const LOCALE_COOKIE_KEY = 'classroomio_locale';
 
@@ -141,21 +144,8 @@ export function activateLocale(newLocale: TLocale) {
 }
 
 export function getPersistedLocale(): string | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    const savedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-    if (savedLocale) {
-      return savedLocale;
-    }
-  } catch (error) {
-    console.warn('Failed to read saved locale from localStorage', error);
-  }
-
-  const cookieMatch = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE_KEY}=([^;]*)`));
-  return cookieMatch?.[1] ? decodeURIComponent(cookieMatch[1]) : null;
+  // Gestiio fork: always Italian — ignore stored preferred locale
+  return DEFAULT_LOCALE;
 }
 
 function persistLocale(newLocale: TLocale) {
