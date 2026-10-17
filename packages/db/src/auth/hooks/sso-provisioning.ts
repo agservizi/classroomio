@@ -36,6 +36,15 @@ export async function ensureOrgMembership(
     .limit(1);
 
   if (existingByProfile) {
+    // Token Auth / SSO may upgrade role on later logins (e.g. Gestiio admin → CIO admin).
+    // Lower roleId = higher privilege (1 admin, 2 tutor, 3 student).
+    if (roleId != null && roleId < existingByProfile.roleId) {
+      await db
+        .update(schema.organizationmember)
+        .set({ roleId, verified: true })
+        .where(eq(schema.organizationmember.id, existingByProfile.id));
+      console.debug('User org role upgraded:', { orgId, from: existingByProfile.roleId, to: roleId });
+    }
     return;
   }
 

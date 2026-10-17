@@ -11,6 +11,14 @@ import type { User } from 'better-auth';
 
 const MAX_TOKEN_AGE_SEC = 5 * 60; // 5 minutes
 
+/** ClassroomIO org roles: 1 admin, 2 tutor, 3 student */
+const ROLE_ID_BY_CLAIM: Record<string, number> = {
+  admin: 1,
+  tutor: 2,
+  learner: 3,
+  student: 3
+};
+
 export class TokenExchangeError extends Error {
   constructor(
     message: string,
@@ -36,7 +44,7 @@ export type TokenExchangeCreateUser = (args: {
 export async function exchangeToken(
   token: string,
   createUser: TokenExchangeCreateUser
-): Promise<{ user: User; orgId: string }> {
+): Promise<{ user: User; orgId: string; roleId?: number }> {
   const configs = await getAllActiveTokenAuth();
   if (configs.length === 0) {
     throw new TokenExchangeError('No active token auth configured', 'TOKEN_EXCHANGE_NOT_ENABLED', 403);
@@ -69,8 +77,9 @@ export async function exchangeToken(
     throw new TokenExchangeError('Invalid token payload', 'TOKEN_EXCHANGE_INVALID_TOKEN', 400);
   }
 
-  const { email, name, avatar } = parsed.data;
+  const { email, name, avatar, role } = parsed.data;
   const emailLower = email.toLowerCase();
+  const roleId = role ? ROLE_ID_BY_CLAIM[role] : undefined;
 
   const [existingUser] = await db.select().from(schema.user).where(eq(schema.user.email, emailLower)).limit(1);
 
@@ -87,7 +96,7 @@ export async function exchangeToken(
     });
   }
 
-  await ensureOrgMembership(user.id, user.email ?? emailLower, orgId);
+  await ensureOrgMembership(user.id, user.email ?? emailLower, orgId, roleId);
 
   if (avatar) {
     await db
@@ -101,6 +110,7 @@ export async function exchangeToken(
       ...user,
       image: user.image ?? null
     },
-    orgId
+    orgId,
+    roleId
   };
 }

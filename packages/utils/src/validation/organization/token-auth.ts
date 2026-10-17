@@ -12,6 +12,8 @@ export const ZTokenExchangePayload = z.object({
   email: z.email(),
   name: z.string().optional(),
   avatar: z.url().optional(),
+  /** Optional org role hint from the external IdP (e.g. Gestiio). */
+  role: z.enum(['admin', 'tutor', 'learner', 'student']).optional(),
   iat: z.number(),
   exp: z.number()
 });
