@@ -28,7 +28,12 @@ export async function getOrgSiteInfo(url: URL, cookies: Cookies): Promise<OrgSit
   // Self-hosted: single org, single domain
   if (PUBLIC_IS_SELFHOSTED === 'true') {
     const apiKeyHeaders = getApiKeyHeaders();
-    const firstOrg = await getFirstOrg(apiKeyHeaders);
+    // Prefer explicit site (Gestiio) when multiple seed orgs exist on one host.
+    const preferredSite = (env.SELFHOSTED_ORG_SITE_NAME || env.PUBLIC_SELFHOSTED_ORG_SITE_NAME || '')
+      .trim()
+      .toLowerCase();
+    const preferredOrg = preferredSite ? await getOrgBySiteName(preferredSite, apiKeyHeaders) : null;
+    const firstOrg = preferredOrg || (await getFirstOrg(apiKeyHeaders));
     if (firstOrg) {
       response.org = toPublicOrg(firstOrg as AccountOrg);
       response.isOrgSite = true;
