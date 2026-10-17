@@ -230,16 +230,9 @@ class AppInitApi extends BaseApi {
     const orgSite = params?.isOrgSite
       ? this.data.organizations.find((org) => org.id === params.orgId || org.siteName === params.orgSiteName)
       : undefined;
-    const enforcedLocale = orgSite?.settings?.language?.enforced
-      ? orgSite.settings.language.locale
-      : params?.orgLocaleEnforced
-        ? params.orgLocale
-        : undefined;
-    if (enforcedLocale) {
-      activateLocale(enforcedLocale);
-    } else {
-      handleLocaleChange(this.data.profile.locale ?? params?.orgLocale ?? 'it');
-    }
+    // Gestiio fork: always Italian — ignore profile / org language prefs
+    activateLocale('it');
+    handleLocaleChange('it');
 
     this.setOrgStore(params);
   }
