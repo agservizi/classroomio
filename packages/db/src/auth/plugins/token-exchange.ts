@@ -1,6 +1,6 @@
 import * as schema from '@db/schema';
 
-import type { BetterAuthPlugin } from 'better-auth';
+import type { BetterAuthPlugin, User } from 'better-auth';
 import { createAuthEndpoint } from 'better-auth/api';
 // Session cookie helper: runtime accepts (ctx, { session, user }), typings show 1 arg
 import { setSessionCookie as _setSessionCookie } from 'better-auth/cookies';
@@ -9,9 +9,8 @@ const setSessionCookie = _setSessionCookie as (
   data: { session: Record<string, unknown>; user: Record<string, unknown> }
 ) => Promise<void>;
 
-import type { User } from 'better-auth';
 import { db } from '@db/drizzle';
-import { exchangeToken, TokenExchangeError } from '../token-exchange';
+import { exchangeToken, TokenExchangeError, type TokenExchangeCreateUser } from '../token-exchange';
 import { trackLoginHook } from '../hooks/track-login';
 import { ZTokenExchangeQuery } from '@cio/utils/validation/organization';
 
@@ -21,6 +20,51 @@ function generateToken(): string {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+type AuthEndpointContext = {
+  context: {
+    internalAdapter?: {
+      createUser: (data: Record<string, unknown>, meta?: Record<string, unknown>) => Promise<User>;
+      linkAccount: (data: Record<string, unknown>) => Promise<unknown>;
+    };
+    password?: {
+      hash: (password: string) => Promise<string>;
+    };
+  };
+};
+
+function buildCreateUserFromContext(ctx: AuthEndpointContext): TokenExchangeCreateUser | null {
+  const internalAdapter = ctx.context?.internalAdapter;
+  const password = ctx.context?.password;
+  if (!internalAdapter?.createUser || !password?.hash || !internalAdapter.linkAccount) {
+    return null;
+  }
+
+  return async ({ name, email, password: plain, image }) => {
+    const user = await internalAdapter.createUser(
+      {
+        name,
+        email,
+        emailVerified: true,
+        image: image ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      { method: 'token-exchange' }
+    );
+    if (!user) {
+      throw new TokenExchangeError('Failed to create user', 'TOKEN_EXCHANGE_CREATE_USER', 500);
+    }
+    const hashedPassword = await password.hash(plain);
+    await internalAdapter.linkAccount({
+      providerId: 'credential',
+      accountId: user.id,
+      userId: user.id,
+      password: hashedPassword
+    });
+    return user;
+  };
 }
 
 export function tokenExchange(): BetterAuthPlugin {
@@ -41,11 +85,11 @@ export function tokenExchange(): BetterAuthPlugin {
         const { token, redirect } = query.data;
         const redirectUrl = redirect && redirect.startsWith('/') ? redirect : '/';
 
-        const auth = (
-          c as unknown as { context: { auth: { api: { signUpEmail: (args: unknown) => Promise<{ user: unknown }> } } } }
-        ).context?.auth;
-        if (!auth?.api?.signUpEmail) {
-          console.error('Token exchange: auth.api not available on context');
+        const createUser = buildCreateUserFromContext(c as unknown as AuthEndpointContext);
+        if (!createUser) {
+          console.error('Token exchange: internalAdapter/password not available on context', {
+            keys: Object.keys((c as { context?: object }).context ?? {})
+          });
           return c.json({ error: 'Server configuration error' }, { status: 500 });
         }
 
@@ -62,14 +106,7 @@ export function tokenExchange(): BetterAuthPlugin {
           orgId: string;
         };
         try {
-          const raw = await exchangeToken(
-            token,
-            auth.api as {
-              signUpEmail: (args: {
-                body: { name: string; email: string; password: string };
-              }) => Promise<{ user: User }>;
-            }
-          );
+          const raw = await exchangeToken(token, createUser);
           result = { user: { ...raw.user, image: raw.user.image ?? null }, orgId: raw.orgId };
         } catch (err: unknown) {
           if (err instanceof TokenExchangeError) {

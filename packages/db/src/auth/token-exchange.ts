@@ -22,15 +22,20 @@ export class TokenExchangeError extends Error {
   }
 }
 
+export type TokenExchangeCreateUser = (args: {
+  name: string;
+  email: string;
+  password: string;
+  image?: string;
+}) => Promise<User>;
+
 /**
  * Exchange a JWT token for a user and org. Verifies signature with org's signing secret,
  * finds or creates user, ensures org membership. Caller is responsible for creating session and setting cookie.
  */
 export async function exchangeToken(
   token: string,
-  authApi: {
-    signUpEmail: (args: { body: { name: string; email: string; password: string } }) => Promise<{ user: User }>;
-  }
+  createUser: TokenExchangeCreateUser
 ): Promise<{ user: User; orgId: string }> {
   const configs = await getAllActiveTokenAuth();
   if (configs.length === 0) {
@@ -74,16 +79,12 @@ export async function exchangeToken(
     user = existingUser as User;
   } else {
     const randomPassword = crypto.randomUUID() + crypto.randomUUID();
-    const signUpBody: { name: string; email: string; password: string; image?: string } = {
+    user = await createUser({
       name: name ?? emailLower.split('@')[0],
       email: emailLower,
-      password: randomPassword
-    };
-    if (avatar) signUpBody.image = avatar;
-    const result = await authApi.signUpEmail({
-      body: signUpBody
+      password: randomPassword,
+      ...(avatar ? { image: avatar } : {})
     });
-    user = result.user;
   }
 
   await ensureOrgMembership(user.id, user.email ?? emailLower, orgId);

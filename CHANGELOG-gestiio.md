@@ -2,6 +2,12 @@
 
 ## gestiio-training (unreleased)
 
+### Fixed
+
+- Token Auth `/api/auth/token-exchange`: use Better Auth `internalAdapter` +
+  `password.hash` to provision users (was looking for non-existent
+  `context.auth.api.signUpEmail` → always "Server configuration error").
+
 ### Changed
 
 - Default and only UI locale: **Italian (`it`)**. Language pickers removed from
